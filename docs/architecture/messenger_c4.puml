@@ -1,0 +1,219 @@
+' ============================================================
+'  Messenger System — Full C4 Model (PlantUML / C4-PlantUML)
+'  Levels: Context, Container, Component (x3), Dynamic/Flow
+'  Render: https://www.plantuml.com/plantuml  or  `plantuml messenger_c4.puml`
+'  Requires C4-PlantUML: https://github.com/plantuml-stdlib/C4-PlantUML
+' ============================================================
+
+' ────────────────────────────────────────────────────────────
+'  LEVEL 1 — CONTEXT DIAGRAM
+' ────────────────────────────────────────────────────────────
+@startuml 01_Context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title Messenger System — Context Diagram (Level 1)
+
+Person(userA, "User A", "Sender / Receiver")
+Person(userB, "User B", "Receiver / Sender")
+
+System_Boundary(ms, "Messenger System") {
+    System(messenger, "Messenger System", "Secure messaging over Telegram")
+}
+
+System_Ext(telegramAPI, "Telegram API", "External transport (MTProto)")
+System_Ext(maskSvc,     "Mask Generator Service", "External — Ollama + LLM")
+
+Rel(userA,      messenger,   "Sends messages")
+Rel(userB,      messenger,   "Sends messages")
+Rel(messenger,  userA,       "Delivers messages")
+Rel(messenger,  userB,       "Delivers messages")
+Rel(messenger,  telegramAPI, "Sends / receives via MTProto")
+Rel(messenger,  maskSvc,     "Requests text mask")
+
+@enduml
+
+
+' ────────────────────────────────────────────────────────────
+'  LEVEL 2 — CONTAINER DIAGRAM
+' ────────────────────────────────────────────────────────────
+@startuml 02_Container
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Messenger System — Container Diagram (Level 2)
+
+Person(userA, "User A", "Sender / Receiver")
+Person(userB, "User B", "Receiver / Sender")
+
+System_Ext(telegramAPI, "Telegram API", "External transport (MTProto)")
+
+System_Boundary(ms, "Messenger System") {
+
+    Container(clientApp,  "Client App",              "Python, Tdlib",        "Telegram wrapper. Encrypts / decrypts messages, renders UI")
+    Container(gateway,    "API Gateway",             "Golang, WebSocket",    "Entry point. Routes requests, orchestrates encryption flow")
+    Container(keyServer,  "Key Server",              "Golang, ECDH",         "Stores and serves public keys")
+    Container(maskSvc,    "Mask Generator Service",  "Golang, Ollama + LLM", "Generates natural-language mask for the ciphertext")
+    ContainerDb(postgres, "PostgreSQL",              "DB",                   "keys, users, ciphers")
+    ContainerDb(redis,    "Redis",                   "In-memory DB",         "Session store, public-key cache")
+}
+
+Rel(userA,      clientApp,  "Uses",                   "UI")
+Rel(userB,      clientApp,  "Uses",                   "UI")
+Rel(clientApp,  gateway,    "Sends / receives",        "WebSocket")
+Rel(gateway,    keyServer,  "Fetch public key",        "HTTP")
+Rel(gateway,    maskSvc,    "Request mask",            "HTTP")
+Rel(gateway,    postgres,   "Read / write",            "pgx")
+Rel(gateway,    redis,      "Cache session & keys",    "Redis protocol")
+Rel(keyServer,  postgres,   "Persist keys",            "pgx")
+Rel(keyServer,  redis,      "Cache public keys (1 h)", "Redis protocol")
+Rel(gateway,    telegramAPI,"Send message",            "gotd/td MTProto")
+Rel(clientApp,  telegramAPI,"Poll updates",            "Tdlib / MTProto")
+
+@enduml
+
+
+' ────────────────────────────────────────────────────────────
+'  LEVEL 3 — COMPONENT: DESKTOP CLIENT
+' ────────────────────────────────────────────────────────────
+@startuml 03_Component_DesktopClient
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Desktop Client — Component Diagram (Level 3)
+
+Person(user, "User A / User B", "End user")
+System_Ext(backend,    "Backend",     "API Gateway, Key Server, Mask Generator")
+System_Ext(telegramAPI,"Telegram API","MTProto, external")
+
+Container_Boundary(desktopClient, "Desktop Client (Electron)") {
+
+    Boundary(renderProcess, "Render Process [React UI]") {
+        Component(convList,   "Conversation list", "React",   "Список диалогов")
+        Component(msgInput,   "Message input",     "React",   "Cipher selector")
+        Component(chatWindow, "Chat window",        "React",   "MessageBubble")
+        Component(zustand,    "Zustand store",      "JS",      "Стейт сообщений")
+    }
+
+    Boundary(mainProcess, "Main Process [Node.js]") {
+        Component(ipcBridge,   "IPC bridge",       "preload.js", "Связь Render ↔ Main через contextBridge")
+        Component(procMgr,     "Process manager",  "Node.js",    "Spawn Python sidecar")
+        Component(sessionMgr,  "Session Manager",  "Node.js",    "Auth, настройки")
+        Component(notifCtrl,   "Notification ctrl","Node.js",    "OS уведомления")
+    }
+
+    Boundary(pythonSidecar, "Python Sidecar [Telethon + crypto]") {
+        Component(telethon,    "Telethon client",  "Python, Telethon", "MTProto, events")
+        Component(cryptoMod,   "Crypto module",    "Python",           "AES-256 + zero-width стеганография")
+    }
+}
+
+Rel(user,       convList,   "Выбирает диалог")
+Rel(user,       msgInput,   "Вводит сообщение, выбирает шифр")
+Rel(msgInput,   ipcBridge,  "Передаёт сообщение", "IPC")
+Rel(convList,   zustand,    "Читает / обновляет стейт")
+Rel(chatWindow, zustand,    "Отображает сообщения из стейта")
+Rel(ipcBridge,  procMgr,    "Команды процессу", "IPC")
+Rel(ipcBridge,  sessionMgr, "Сессия / настройки", "IPC")
+Rel(ipcBridge,  notifCtrl,  "Показать уведомление", "IPC")
+Rel(procMgr,    telethon,   "Spawn / управление")
+Rel(telethon,   cryptoMod,  "Передаёт входящий текст для парсинга")
+Rel(telethon,   telegramAPI,"MTProto события / отправка", "MTProto")
+Rel(cryptoMod,  ipcBridge,  "Возвращает plaintext", "IPC / stdout")
+Rel(sessionMgr, backend,    "HTTP запросы (auth, pub key publish)", "HTTP")
+
+@enduml
+
+
+' ────────────────────────────────────────────────────────────
+'  LEVEL 3 — COMPONENT: KEY SERVER
+' ────────────────────────────────────────────────────────────
+@startuml 04_Component_KeyServer
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Key Server — Component Diagram (Level 3)
+
+Container_Ext(gateway,  "API Gateway",  "Golang, WebSocket", "Calls Key Server over HTTP")
+ContainerDb_Ext(pg,     "PostgreSQL",   "DB",                "Persistent key storage")
+ContainerDb_Ext(redis,  "Redis Cache",  "In-memory",         "pub_key:{user_id} — TTL 1 h, cache-aside")
+
+Container_Boundary(ks, "Key Server (Golang)") {
+
+    Component(handler,   "Keys Handler",    "Golang, net/http", "REST: POST /publish  GET /{user_id}  DELETE /revoke")
+    Component(validator, "Crypto Validator","Golang",           "X25519 length check (32 bytes), base64 decode, format validate")
+    Component(repo,      "Keys Repository", "Golang, pgx/v5",  "INSERT key  SELECT key  ON CONFLICT UPDATE")
+    Component(cache,     "Cache Layer",     "Golang, go-redis", "cache-aside: read Redis → fallback to DB → populate cache")
+}
+
+Rel(gateway,   handler,   "HTTP request",        "HTTP")
+Rel(handler,   validator, "Validate key format")
+Rel(handler,   cache,     "Lookup / store key")
+Rel(cache,     redis,     "Read / write",        "Redis protocol")
+Rel(cache,     repo,      "Fallback on miss")
+Rel(repo,      pg,        "SQL queries",         "pgx/v5")
+
+@enduml
+
+
+' ────────────────────────────────────────────────────────────
+'  LEVEL 3 — COMPONENT: MASK GENERATOR SERVICE
+' ────────────────────────────────────────────────────────────
+@startuml 05_Component_MaskGenerator
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Mask Generator Service — Component Diagram (Level 3)
+
+Container_Ext(gateway, "API Gateway", "Golang, WebSocket", "Calls Mask Generator over HTTP")
+ContainerDb_Ext(pg,    "PostgreSQL",  "DB",                "Stores cipher texts (Harry Potter, etc.)")
+System_Ext(ollama,     "Ollama",      "Local LLM runtime", "model: mistral  temp: 0.85  num_predict: 80")
+
+Container_Boundary(mgs, "Mask Generator Service (Golang)") {
+
+    Component(analyser,  "Message Analyser", "Golang",        "Extracts: tone, urgency, length, language")
+    Component(cipherLoad,"Cipher Loader",    "Golang",        "Reads cipher styles from PostgreSQL, in-memory LRU cache")
+    Component(promptBld, "Prompt Builder",   "Golang",        "system: style + rules\nuser: original message")
+    Component(ollamaClient,"Ollama Client",  "Golang, HTTP",  "POST /api/generate → model mistral")
+    Component(maskVal,   "Mask Validator",   "Golang",        "Length: 10–300 chars, retry ×3 on fail")
+}
+
+Rel(gateway,      analyser,     "POST /generate-mask",   "HTTP")
+Rel(analyser,     cipherLoad,   "Request cipher style")
+Rel(cipherLoad,   pg,           "SELECT cipher",          "pgx/v5")
+Rel(analyser,     promptBld,    "Pass analysis result")
+Rel(cipherLoad,   promptBld,    "Pass cipher style")
+Rel(promptBld,    ollamaClient, "Send prompt")
+Rel(ollamaClient, ollama,       "Inference request",      "HTTP POST /api/generate")
+Rel(ollamaClient, maskVal,      "Pass generated mask")
+Rel(maskVal,      gateway,      "Return validated mask",  "HTTP")
+
+@enduml
+
+
+' ────────────────────────────────────────────────────────────
+'  DYNAMIC — MESSAGE SEND FLOW
+' ────────────────────────────────────────────────────────────
+@startuml 06_Dynamic_SendFlow
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Dynamic.puml
+
+title Messenger System — Send Message Flow (Dynamic)
+
+Person(userA,    "User A")
+Container(client,"Client App",              "Python, Tdlib")
+Container(gw,    "API Gateway",             "Golang, WebSocket")
+Container(ks,    "Key Server",              "Golang, ECDH")
+Container(mgs,   "Mask Generator Service",  "Golang, Ollama")
+System_Ext(tg,   "Telegram API",            "MTProto")
+Person(userB,    "User B")
+
+Rel(userA,  client, "1. Compose message")
+Rel(client, gw,     "2. Send message",                    "WebSocket")
+Rel(gw,     ks,     "3. GET /{userB_id} — fetch pub key", "HTTP")
+Rel(ks,     gw,     "4. Return public key of User B",     "HTTP")
+Rel(gw,     mgs,    "5. POST /generate-mask",             "HTTP")
+Rel(mgs,    gw,     "6. Return mask phrase",              "HTTP")
+Rel(gw,     gw,     "7. Compute shared key (ECDH X25519)\n   Encrypt payload (AES-256)")
+Rel(gw,     gw,     "8. Embed ciphertext in zero-width\n   Unicode chars after mask phrase")
+Rel(gw,     tg,     "9. Send composed message",           "gotd/td MTProto")
+Rel(tg,     userB,  "10. Deliver — only mask visible in chat")
+Rel(userB,  client, "11. Open message in client")
+Rel(client, client, "12. Stego-parse → decrypt (AES-256)\n    via local shared key")
+Rel(client, userB,  "13. Show original plaintext")
+
+@enduml
