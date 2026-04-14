@@ -1,0 +1,49 @@
+.sidemenu {
+    resize: horizontal;
+    overflow-x: auto;
+    min-width: 250px;
+    width: 300px;
+    position: relative;
+    user-select: none;
+    container-type: inline-size;
+    container-name: sidemenu;
+    display: grid;
+    grid-template-rows: 100px 1fr;
+    height: 100vh;
+    border-right: var(--sb-item-border);
+}
+
+.sidemenu::-webkit-scrollbar {
+    width: 0;
+}
+
+.sideContent {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-height: min-content;
+    background-color: burlywood;
+    transition: all 0.5s;
+    overflow: hidden;
+}
+
+@container sidemenu (width <= 500px) {
+    .sideContent {
+        background-color: aquamarine;
+    }
+}
+
+.sidemenu::-webkit-resizer {
+    display: none;
+}
+
+.draggableRightPart {
+    cursor: ew-resize;
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: 8px;
+    /* background-color: blue; */
+}

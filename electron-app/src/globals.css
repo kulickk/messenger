@@ -1,0 +1,22 @@
+:root {
+    /* Font colors */
+    /* fc - font color */
+    --main-fc: #000000;
+    --second-fc: #FFFFFF;
+    --status-fc: #0088CC;
+
+    --sb-item-active-fc: #FFFFFF;
+    --placeholder-fc: #00000080;
+
+    /* Background colors */
+    /* bgc - background color */
+    /* sb - sidebar */
+    --sb-bgc: #A2A2A2;
+    --sb-header-bgc: #FFFFFF;
+    --sb-item-bgc: #FFFFFF;
+    --sb-item-avatar-bgc: #D9D9D980;
+    --sb-item-active-bgc: #404040;
+    --sb-item-border: 1px solid #000000;
+
+    --content-bgc: #6e6e6e;
+}

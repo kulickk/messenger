@@ -1,5 +1,6 @@
-const { app, BrowserWindow } = require('electron');
-const path = require('node:path');
+const { app, BrowserWindow, session } = require('electron');
+import { installExtension, REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer';
+const path = require('node:path')
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -9,12 +10,12 @@ if (require('electron-squirrel-startup')) {
 const createWindow = () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1200,
+    height: 1000,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
     },
-  });
+  }); 
 
   // and load the index.html of the app.
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
@@ -27,6 +28,10 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  installExtension(REACT_DEVELOPER_TOOLS)
+    .then((ext) => console.log(`Added Extension:  ${ext.name}`))
+    .catch((err) => console.log('An error occurred: ', err));
+
   createWindow();
 
   // On OS X it's common to re-create a window in the app when the
