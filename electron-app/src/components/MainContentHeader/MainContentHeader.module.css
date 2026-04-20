@@ -1,0 +1,28 @@
+.headerWrapper {
+    padding: 10px 17px 10px 40px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.titleWrapper {
+    display: flex;
+    flex-direction: column;
+}
+
+.titleWrapper > p {
+    margin: 0;
+}
+
+.title {
+    white-space: nowrap;
+}
+
+.status {
+    color: var(--status-fc);
+}
+
+.threeDotsSvg {
+    align-self: center;
+    padding: 9px 23px;
+    cursor: pointer;
+}

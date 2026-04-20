@@ -1,0 +1,50 @@
+.sidebarItem {
+    height: 110px;
+    min-height: 110px;
+    padding: 15px 20px;
+    box-sizing: border-box;
+    background-color: var(--sb-item-bgc);
+    border-bottom: var(--sb-item-border);
+    display: flex;
+    gap: 23px;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.sidebarAvatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: var(--sb-item-avatar-bgc);
+    display: block;
+    flex-shrink: 0;
+}
+
+.sidebarItemTextContainer {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    width: 20px;
+}
+
+.sidebarItemTextContainer > span {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    width: 100%;
+    display: block;
+}
+
+.sidebarItemTitle {
+    font-weight: 700;
+}
+
+.isActive {
+    background-color: var(--sb-item-active-bgc);
+    color: var(--sb-item-active-fc);
+}
