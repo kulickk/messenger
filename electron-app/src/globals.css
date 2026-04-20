@@ -1,22 +1,30 @@
 :root {
-    /* Font colors */
-    /* fc - font color */
     --main-fc: #000000;
     --second-fc: #FFFFFF;
     --status-fc: #0088CC;
+    --placeholder-fc: #8E8E93;
 
-    --sb-item-active-fc: #FFFFFF;
-    --placeholder-fc: #00000080;
-
-    /* Background colors */
-    /* bgc - background color */
-    /* sb - sidebar */
-    --sb-bgc: #A2A2A2;
+    --sb-bgc: #FFFFFF;
     --sb-header-bgc: #FFFFFF;
     --sb-item-bgc: #FFFFFF;
-    --sb-item-avatar-bgc: #D9D9D980;
-    --sb-item-active-bgc: #404040;
-    --sb-item-border: 1px solid #000000;
+    --sb-item-avatar-bgc: #C7C7CC;
+    --sb-item-active-bgc: #2C2C2E;
+    --sb-item-active-fc: #FFFFFF;
+    --sb-item-border: 1px solid #E5E5EA;
 
-    --content-bgc: #6e6e6e;
+    --content-bgc: #D1D1D6;
+    --header-bgc: #FFFFFF;
+
+    --bubble-sent-bgc: #1C1C1E;
+    --bubble-sent-fc:  #FFFFFF;
+    --bubble-recv-bgc: #FFFFFF;
+    --bubble-recv-fc:  #000000;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--content-bgc);
+    overflow: hidden;
 }

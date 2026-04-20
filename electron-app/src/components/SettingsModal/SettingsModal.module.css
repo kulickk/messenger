@@ -1,0 +1,90 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: #fff;
+    border-radius: 16px;
+    padding: 40px 36px 32px;
+    width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+}
+
+.logo  { font-size: 40px; text-align: center; }
+.title { font-size: 22px; font-weight: 700; text-align: center; color: #1C1C1E; }
+
+.subtitle {
+    font-size: 13px;
+    color: #8E8E93;
+    text-align: center;
+    line-height: 1.5;
+}
+
+.label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #3C3C43;
+    margin-bottom: -4px;
+}
+
+.input {
+    padding: 11px 14px;
+    border: 1.5px solid #E5E5EA;
+    border-radius: 12px;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.15s;
+    font-family: monospace;
+}
+.input:focus { border-color: #0088CC; }
+
+.error {
+    font-size: 13px;
+    color: #FF3B30;
+    text-align: center;
+    min-height: 18px;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.cancelBtn {
+    flex: 1;
+    padding: 13px;
+    border-radius: 12px;
+    border: 1.5px solid #E5E5EA;
+    background: #fff;
+    color: #3C3C43;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.cancelBtn:hover { background: #F2F2F7; }
+
+.btn {
+    flex: 1;
+    padding: 13px;
+    border-radius: 12px;
+    border: none;
+    background: #0088CC;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.btn:hover:not(:disabled) { background: #006FA8; }
+.btn:disabled { opacity: 0.5; cursor: default; }

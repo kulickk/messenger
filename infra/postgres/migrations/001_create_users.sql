@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS users (
+    id         VARCHAR(64)  PRIMARY KEY,
+    created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);

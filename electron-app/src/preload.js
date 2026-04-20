@@ -1,2 +1,7 @@
-// See the Electron documentation for details on how to use preload scripts:
-// https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
+const { contextBridge, ipcRenderer } = require('electron')
+
+contextBridge.exposeInMainWorld('messenger', {
+    getDefaults: ()                              => ipcRenderer.invoke('messenger:getDefaults'),
+    getKeys:     (userId)                        => ipcRenderer.invoke('messenger:getKeys', userId),
+    decrypt:     (fromUserId, payloadB64, myId)  => ipcRenderer.invoke('messenger:decrypt', fromUserId, payloadB64, myId),
+})

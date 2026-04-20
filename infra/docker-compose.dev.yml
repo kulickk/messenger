@@ -1,0 +1,27 @@
+# Dev overlay — exposes all ports to localhost for smoke testing.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+name: messenger
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  key-server:
+    ports:
+      - "8081:8081"
+
+  mask-generator:
+    ports:
+      - "8082:8082"
+
+  ollama:
+    ports:
+      - "11434:11434"

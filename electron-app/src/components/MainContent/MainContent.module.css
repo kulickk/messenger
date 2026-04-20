@@ -1,3 +1,124 @@
 .contentWrapper {
-    background-color: var(--content-bgc);
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    background: var(--content-bgc);
+}
+
+.messageList {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.messageList::-webkit-scrollbar { width: 4px; }
+.messageList::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 2px; }
+
+.bubbleRow {
+    display: flex;
+    flex-direction: column;
+}
+
+.bubbleRowSelf  { align-items: flex-end; }
+.bubbleRowOther { align-items: flex-start; }
+
+.bubble {
+    max-width: 65%;
+    padding: 9px 13px 6px;
+    border-radius: 16px;
+    font-size: 15px;
+    line-height: 1.4;
+    word-break: break-word;
+    position: relative;
+}
+
+.bubbleSelf {
+    background: var(--bubble-sent-bgc);
+    color: var(--bubble-sent-fc);
+    border-bottom-right-radius: 4px;
+}
+
+.bubbleOther {
+    background: var(--bubble-recv-bgc);
+    color: var(--bubble-recv-fc);
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
+.bubbleMeta {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+    margin-top: 3px;
+}
+
+.time {
+    font-size: 11px;
+    opacity: 0.55;
+}
+
+.mask {
+    font-size: 11px;
+    opacity: 0.45;
+    margin-top: 1px;
+    font-style: italic;
+}
+
+.placeholder {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8E8E93;
+    font-size: 15px;
+}
+
+.inputArea {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: #FFFFFF;
+    border-top: var(--sb-item-border);
+}
+
+.inputArea input {
+    flex: 1;
+    padding: 10px 14px;
+    border-radius: 22px;
+    border: 1px solid #E5E5EA;
+    background: #F2F2F7;
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.inputArea input:focus {
+    border-color: #0088CC;
+    background: #fff;
+}
+
+.inputArea button {
+    padding: 9px 20px;
+    border-radius: 22px;
+    border: none;
+    background: #0088CC;
+    color: #fff;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+.inputArea button:hover:not(:disabled) { background: #006FA8; }
+
+.inputArea button:disabled {
+    opacity: 0.4;
+    cursor: default;
 }

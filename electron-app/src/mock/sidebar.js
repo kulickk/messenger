@@ -1,29 +1,8 @@
+// Default contacts — set `id` to the actual USER_ID of the other person
 const chats = [
-    {
-        id: "1",
-        title: "Иван Иванов",
-        previewMessage: "Привет, как у тебя дела?!"
-    },
-    {
-        id: "2",
-        title: "Петр Петров",
-        previewMessage: "Выглядит чище, но как будто слишком много воздуха"
-    },
-    {
-        id: "3",
-        title: "Антон Антонов",
-        previewMessage: "Вот да, у меня то же ощущение, особенно в списке чатов"
-    },
-    {
-        id: "4",
-        title: "Александр Александров",
-        previewMessage: "Зато читается легче и на большом экране это плюс"
-    },
-    {
-        id: "5",
-        title: "Дмитрий Дмитриевич",
-        previewMessage: "Согласен, но кнопки как будто стали менее заметными"
-    },
+  { id: 'user_b', title: 'user_b', previewMessage: '' },
+  { id: 'alice',  title: 'alice',  previewMessage: '' },
+  { id: 'bob',    title: 'bob',    previewMessage: '' },
 ]
 
-export default chats;
+export default chats

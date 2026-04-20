@@ -1,56 +1,74 @@
-const { app, BrowserWindow, session } = require('electron');
-import { installExtension, REACT_DEVELOPER_TOOLS } from 'electron-devtools-installer';
-const path = require('node:path')
+const { app, BrowserWindow, ipcMain, session } = require('electron')
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (require('electron-squirrel-startup')) {
-  app.quit();
+if (require('electron-squirrel-startup')) app.quit()
+
+const { getOrCreateKeyPair, ecdhDerive, aesDecrypt, fetchAndCachePubKey } = require('./lib/nodeCrypto')
+
+const isDev = process.env.NODE_ENV !== 'production'
+
+const defaults = {
+    keyServerUrl:   process.env.KEY_SERVER_URL   || 'http://localhost:8081',
+    gatewayUrl:     process.env.GATEWAY_URL      || 'ws://localhost:8080',
+    gatewayHttpUrl: process.env.GATEWAY_HTTP_URL || 'http://localhost:8080',
+    cipherId:       process.env.CIPHER_ID        || 'harry_potter',
 }
 
-const createWindow = () => {
-  // Create the browser window.
-  const mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 1000,
-    webPreferences: {
-      preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
-    },
-  }); 
+// ── IPC ───────────────────────────────────────────────────────────────────────
 
-  // and load the index.html of the app.
-  mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
+ipcMain.handle('messenger:getDefaults', () => defaults)
 
-  // Open the DevTools.
-  mainWindow.webContents.openDevTools();
-};
+ipcMain.handle('messenger:getKeys', (_e, userId) => getOrCreateKeyPair(userId))
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
+ipcMain.handle('messenger:decrypt', async (_e, fromUserId, payloadB64, myUserId) => {
+    const { privKeyB64 } = getOrCreateKeyPair(myUserId)
+    const privRaw    = Buffer.from(privKeyB64, 'base64')
+    const peerPubRaw = await fetchAndCachePubKey(fromUserId, defaults.keyServerUrl)
+    const shared     = ecdhDerive(privRaw, peerPubRaw)
+    return aesDecrypt(shared, Buffer.from(payloadB64, 'base64'))
+})
+
+// ── Window ────────────────────────────────────────────────────────────────────
+
+function createWindow() {
+    const win = new BrowserWindow({
+        width:  1200,
+        height: 800,
+        minWidth:  800,
+        minHeight: 600,
+        title: 'Messenger',
+        webPreferences: {
+            preload:          MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
+            contextIsolation: true,
+        },
+    })
+
+    win.loadURL(MAIN_WINDOW_WEBPACK_ENTRY)
+
+    if (isDev) win.webContents.openDevTools()
+}
+
 app.whenReady().then(() => {
-  installExtension(REACT_DEVELOPER_TOOLS)
-    .then((ext) => console.log(`Added Extension:  ${ext.name}`))
-    .catch((err) => console.log('An error occurred: ', err));
+    // Allow fetch/WS to localhost
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+        callback({
+            responseHeaders: {
+                ...details.responseHeaders,
+                'Content-Security-Policy': [
+                    "default-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' ws://localhost:* http://localhost:* blob:; worker-src 'self' blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;",
+                ],
+                'Cross-Origin-Opener-Policy':   ['same-origin'],
+                'Cross-Origin-Embedder-Policy': ['require-corp'],
+            },
+        })
+    })
 
-  createWindow();
+    createWindow()
 
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    }
-  });
-});
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
+})
 
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
-
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and import them here.
+    if (process.platform !== 'darwin') app.quit()
+})

@@ -1,0 +1,129 @@
+name: messenger
+
+services:
+
+  # ── Infrastructure ──────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       messenger
+      POSTGRES_USER:     postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d messenger"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - redis_data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Ollama ──────────────────────────────────────────────────────────────────
+
+  ollama:
+    image: ollama/ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  # Runs once to pull the model; exits 0 when done.
+  ollama-pull:
+    image: ollama/ollama
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama", "pull", "tinyllama"]
+
+  # ── Application services ────────────────────────────────────────────────────
+
+  key-server:
+    build:
+      context: ../key-server
+      dockerfile: Dockerfile
+    restart: on-failure
+    environment:
+      LISTEN_ADDR:  :8081
+      POSTGRES_DSN: postgres://postgres:postgres@postgres:5432/messenger?sslmode=disable
+      REDIS_ADDR:   redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health > /dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mask-generator:
+    build:
+      context: ../mask-generator
+      dockerfile: Dockerfile
+    restart: on-failure
+    environment:
+      LISTEN_ADDR:  :8082
+      POSTGRES_DSN: postgres://postgres:postgres@postgres:5432/messenger?sslmode=disable
+      OLLAMA_URL:   http://ollama:11434
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health > /dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api-gateway:
+    build:
+      context: ../api-gateway
+      dockerfile: Dockerfile
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    environment:
+      LISTEN_ADDR:          :8080
+      POSTGRES_DSN:         postgres://postgres:postgres@postgres:5432/messenger?sslmode=disable
+      REDIS_ADDR:           redis:6379
+      KEY_SERVER_URL:       http://key-server:8081
+      MASK_GENERATOR_URL:   http://mask-generator:8082
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      key-server:
+        condition: service_healthy
+      mask-generator:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  ollama_data:
