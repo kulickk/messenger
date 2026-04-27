@@ -1,0 +1,37 @@
+.headerContaner {
+    height: 100px;
+    width: 100%;
+    display: flex;
+    gap: 30px;
+    padding: 25px 30px;
+    box-sizing: border-box;
+    align-items: center;
+    border-bottom: var(--sb-item-border);
+}
+
+.svgButton {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px;
+}
+
+.svgContainer {
+    height: fit-content;
+}
+
+.searchLine {
+    padding: 0;
+    padding-left: 20px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    height: 46px;
+    width: 100%;
+    color: var(--main-fc);
+    font-size: 20px;
+    border: 2px solid ;
+}
+
+.searchLine::placeholder {
+    color: var(--placeholder-fc);
+}
