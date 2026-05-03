@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="
+        default-src 'self';
+        script-src 'self' 'unsafe-eval' 'unsafe-inline';
+        style-src 'self' 'unsafe-inline';
+        style-src-attr 'self' 'unsafe-inline';
+        connect-src 'self' https: wss: ws:;
+        worker-src 'self' blob:;
+        img-src 'self' data: blob: https:;
+        font-src 'self' data:;
+        media-src 'self' https:;
+      "
+        />
+
+        <title>Hello World!</title>
+    </head>
+    <body>
+        <div id="app"></div>
+        <script type="module" src="/src/renderer.js"></script>
+    </body>
+</html>

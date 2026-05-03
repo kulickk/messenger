@@ -1,5 +1,5 @@
 /**
- * This file will automatically be loaded by webpack and run in the "renderer" context.
+ * This file will automatically be loaded by vite and run in the "renderer" context.
  * To learn more about the differences between the "main" and the "renderer" context in
  * Electron, visit:
  *
@@ -26,12 +26,12 @@
  * ```
  */
 
-import './index.css';
-import './globals.css';
+import "./index.css";
+import "./globals.css";
 
 console.log(
-  '👋 This message is being logged by "renderer.js", included via webpack',
+    '👋 This message is being logged by "renderer.js", included via Vite',
 );
 
 // Add this to the end of the existing file
-import './app.jsx';
+import "./app.jsx";
