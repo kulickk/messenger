@@ -5,7 +5,243 @@
 .mainContent {
     min-width: 200px;
     height: 100vh;
-    display: grid;
-    grid-template-rows: 100px 1fr;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     flex: 1;
+}
+
+.welcome {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: #f7f7f7;
+    padding: 40px;
+}
+
+.welcomeGreeting {
+    font-size: 22px;
+    font-weight: 700;
+    color: #222;
+}
+
+.welcomeHint {
+    font-size: 15px;
+    color: #888;
+    margin: 0;
+}
+
+/* Loading screen */
+.loadingScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 20px;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Auth form */
+.authForm {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 20px;
+    padding: 20px;
+}
+
+.authForm h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.hint {
+    color: #666;
+    font-size: 14px;
+    margin: 0 0 10px 0;
+}
+
+.inputField {
+    width: 250px;
+    padding: 12px 15px;
+    font-size: 16px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    outline: none;
+    transition: border-color 0.3s;
+}
+
+.inputField:focus {
+    border-color: #3498db;
+}
+
+.inputField:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+}
+
+.btn {
+    width: 250px;
+    padding: 12px 20px;
+    font-size: 16px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.btn:hover:not(:disabled) {
+    background-color: #2980b9;
+}
+
+.btn:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+}
+
+.btnDanger {
+    background-color: #e74c3c;
+}
+
+.btnDanger:hover:not(:disabled) {
+    background-color: #c0392b;
+}
+
+/* Error screen */
+.errorScreen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 20px;
+    padding: 20px;
+}
+
+.errorScreen h3 {
+    color: #e74c3c;
+    margin: 0;
+}
+
+.errorScreen p {
+    color: #666;
+    text-align: center;
+}
+
+/* Authenticated container */
+.authenticatedContainer {
+    padding: 30px;
+    overflow-y: auto;
+}
+
+.welcomeSection {
+    margin-bottom: 30px;
+}
+
+.welcomeSection h2 {
+    margin: 0 0 5px 0;
+    color: #333;
+}
+
+.username {
+    color: #666;
+    font-size: 16px;
+    margin: 0;
+}
+
+.actionsSection {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+.chatsSection {
+    margin-top: 20px;
+}
+
+.chatsSection h3 {
+    margin: 0 0 15px 0;
+    color: #333;
+}
+
+.loadingText,
+.noChats {
+    color: #666;
+    text-align: center;
+    padding: 20px;
+}
+
+.chatsList {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.chatItem {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+    border: 1px solid #e9ecef;
+}
+
+.chatHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.chatId {
+    font-size: 12px;
+    color: #999;
+    font-weight: normal;
+}
+
+.chatType {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.error {
+    color: #e74c3c;
+    font-size: 14px;
+    margin: 4px 0 0;
+}
+
+.lastMessage {
+    font-size: 14px;
+    color: #444;
+    line-height: 1.4;
+    max-height: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
 }

@@ -1,155 +1,120 @@
+import { useEffect, useRef, useState } from "react";
 import styles from "./App.module.css";
 import SideBar from "../Sidebar/Sidebar.jsx";
-import MainContent from "../MainContent/MainContent.jsx";
-import { useData } from "../../hooks/useData.js";
-import { useEffect, useRef, useState } from "react";
-import { getTelegramClient } from "../../lib/telegram/client.js";
+import Chat from "../Chat/Chat.jsx";
+import Profile from "../Profile/Profile.jsx";
+import TDLibService from "../../lib/telegram/TDLibService";
 
-const API_ID = Number(import.meta.env.VITE_TELEGRAM_API_ID);
-const API_HASH = import.meta.env.VITE_TELEGRAM_API_HASH;
+const AUTH = {
+    INIT: "initializing",
+    PHONE: "wait_phone",
+    CODE: "wait_code",
+    PASSWORD: "wait_password",
+    READY: "authorized",
+    ERROR: "error",
+};
 
 const App = () => {
-    const [client, setClient] = useState(null);
-    const [error, setError] = useState(null);
-    const data = useData("mock");
-    const [activeItem, setActiveItem] = useState(null);
-
-    const [loading, setLoading] = useState(false);
-    const [authState, setAuthState] = useState("initializing");
+    const [authState, setAuthState] = useState(AUTH.INIT);
     const [user, setUser] = useState(null);
-    const [phoneNumber, setPhoneNumber] = useState("");
+    const [chats, setChats] = useState([]);
+    const [activeChat, setActiveChat] = useState(null);
+    const [view, setView] = useState("main"); // 'main' | 'profile'
+    const [loading, setLoading] = useState(false);
+    const [chatsLoading, setChatsLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [phone, setPhone] = useState("");
     const [code, setCode] = useState("");
+    const [password, setPassword] = useState("");
 
-    const handleClickSidebarItem = (chat) => {
-        setActiveItem(chat);
-        console.log(chat);
-    };
-
-    // Предотвращаем двойную инициализацию
-    const initRef = useRef(false);
-    const clientRef = useRef(null);
+    const tdRef = useRef(null);
+    const mountedRef = useRef(true);
 
     useEffect(() => {
-        if (initRef.current) return;
-        initRef.current = true;
+        mountedRef.current = true;
+        const td = new TDLibService();
+        tdRef.current = td;
 
-        let mounted = true;
-        let timeoutId = null;
+        td.on("update", (update) => {
+            if (!mountedRef.current) return;
 
-        const initClient = async () => {
-            try {
-                const client = getTelegramClient();
-                clientRef.current = client;
-
-                // Устанавливаем callback ДО инициализации
-                client.onAuthStateChange = (state) => {
-                    if (!mounted) return;
-                    console.log("📢 Callback вызван:", state["@type"]);
-                    updateAuthState(state["@type"]);
-                };
-
-                await client.init();
-
-                if (!mounted) return;
-
-                // После инициализации проверяем текущее состояние
-                console.log("🔍 Проверка состояния после init...");
-                await checkCurrentState();
-            } catch (err) {
-                console.error("❌ Ошибка:", err);
-                if (mounted) {
-                    setError(err.message);
-                    setAuthState("error");
-                }
+            if (update["@type"] === "updateNewChat") {
+                const chat = update.chat;
+                setChats((prev) =>
+                    prev.some((c) => c.id === chat.id) ? prev : [...prev, chat],
+                );
+                return;
             }
-        };
 
-        const checkCurrentState = async () => {
-            try {
-                // Пробуем получить текущего пользователя
-                const me = await clientRef.current.getMe();
-                if (me && mounted) {
-                    console.log("✅ Пользователь найден:", me.first_name);
-                    setUser(me);
-                    setAuthState("authorized");
-                }
-            } catch (err) {
-                // Если не авторизованы - запрашиваем телефон
-                console.log("❌ Не авторизованы, ошибка:", err.message);
-                if (mounted) {
-                    setAuthState("wait_phone");
-                }
+            if (update["@type"] === "updateChatLastMessage") {
+                setChats((prev) =>
+                    prev.map((c) =>
+                        c.id === update.chat_id
+                            ? { ...c, last_message: update.last_message }
+                            : c,
+                    ),
+                );
+                return;
             }
-        };
 
-        const updateAuthState = (stateType) => {
-            console.log("🔄 Обновление UI состояния:", stateType);
+            if (update["@type"] !== "updateAuthorizationState") return;
 
-            switch (stateType) {
+            const state = update.authorization_state["@type"];
+            switch (state) {
                 case "authorizationStateWaitPhoneNumber":
-                    setAuthState("wait_phone");
+                    setAuthState(AUTH.PHONE);
+                    setLoading(false);
                     break;
                 case "authorizationStateWaitCode":
-                    setAuthState("wait_code");
+                    setAuthState(AUTH.CODE);
+                    setLoading(false);
                     break;
                 case "authorizationStateWaitPassword":
-                    setAuthState("wait_password");
+                    setAuthState(AUTH.PASSWORD);
+                    setLoading(false);
                     break;
                 case "authorizationStateReady":
-                    setAuthState("authorized");
-                    // Загружаем пользователя
-                    clientRef.current
-                        ?.getMe()
+                    setAuthState(AUTH.READY);
+                    setLoading(false);
+                    td.getMe()
                         .then((me) => {
-                            if (mounted) {
-                                setUser(me);
-                                console.log(
-                                    "👤 Пользователь загружен:",
-                                    me.first_name,
-                                );
-                            }
+                            if (mountedRef.current) setUser(me);
                         })
-                        .catch(console.error);
+                        .catch((e) => console.warn("[App] getMe:", e.message));
+                    td.loadChats(50).catch(() => {});
                     break;
                 case "authorizationStateClosed":
-                    setAuthState("closed");
+                    setChats([]);
+                    setUser(null);
+                    setActiveChat(null);
+                    setAuthState(AUTH.PHONE);
+                    setLoading(false);
                     break;
             }
-        };
+        });
 
-        initClient();
+        td.init().catch((err) => {
+            if (mountedRef.current) {
+                console.error("[App] TDLib init failed:", err);
+                setError(err.message);
+                setAuthState(AUTH.ERROR);
+            }
+        });
 
         return () => {
-            mounted = false;
-            if (timeoutId) clearTimeout(timeoutId);
+            mountedRef.current = false;
+            td.destroy();
         };
     }, []);
 
-    // Загрузка данных пользователя после авторизации
-    useEffect(() => {
-        if (authState === "authorized" && clientRef.current) {
-            loadUserInfo();
-        }
-    }, [authState]);
-
     const handleSendPhone = async (e) => {
         e.preventDefault();
-        if (!phoneNumber.trim()) return;
-
-        console.log("📱 Отправка номера:", phoneNumber);
+        if (!phone.trim()) return;
         setLoading(true);
         setError("");
-
         try {
-            await clientRef.current.setPhoneNumber(phoneNumber);
-            console.log("✅ Номер отправлен, ждем код...");
-
-            // Принудительно обновляем состояние через 1 секунду
-            setTimeout(() => {
-                checkAuthAfterAction();
-            }, 1000);
+            await tdRef.current.setPhoneNumber(phone.trim());
         } catch (err) {
-            console.error("❌ Ошибка отправки номера:", err);
             setError(err.message);
             setLoading(false);
         }
@@ -158,31 +123,12 @@ const App = () => {
     const handleSendCode = async (e) => {
         e.preventDefault();
         if (!code.trim()) return;
-
-        console.log("🔐 Отправка кода...");
         setLoading(true);
         setError("");
-
         try {
-            await clientRef.current.checkCode(code);
-            console.log("✅ Код отправлен");
-
-            // Принудительно обновляем состояние
-            setTimeout(() => {
-                checkAuthAfterAction();
-            }, 1000);
+            await tdRef.current.checkCode(code.trim());
         } catch (err) {
-            console.error("❌ Ошибка кода:", err);
-
-            // Если ошибка 401 - нужен пароль 2FA
-            if (
-                err.message.includes("401") ||
-                err.message.includes("PASSWORD")
-            ) {
-                setAuthState("wait_password");
-            } else {
-                setError(err.message);
-            }
+            setError(err.message);
             setLoading(false);
         }
     };
@@ -190,176 +136,232 @@ const App = () => {
     const handleSendPassword = async (e) => {
         e.preventDefault();
         if (!password.trim()) return;
-
-        console.log("🔑 Отправка пароля...");
         setLoading(true);
         setError("");
-
         try {
-            await clientRef.current.checkPassword(password);
-            console.log("✅ Пароль принят");
-
-            // Принудительно обновляем состояние
-            setTimeout(() => {
-                checkAuthAfterAction();
-            }, 1000);
+            await tdRef.current.checkPassword(password.trim());
         } catch (err) {
-            console.error("❌ Ошибка пароля:", err);
             setError(err.message);
             setLoading(false);
         }
     };
 
-    const checkAuthAfterAction = async () => {
+    const handleLogout = async () => {
+        setLoading(true);
         try {
-            const me = await clientRef.current.getMe();
-            console.log("✅ Авторизация успешна:", me.first_name);
-            setUser(me);
-            setAuthState("authorized");
-        } catch (err) {
-            console.log("⏳ Еще не авторизованы, ждем...");
-
-            // Пробуем еще раз через 2 секунды
-            setTimeout(async () => {
-                try {
-                    const me = await clientRef.current.getMe();
-                    setUser(me);
-                    setAuthState("authorized");
-                } catch (err2) {
-                    console.log("Ожидание следующего шага...");
-                }
-                setLoading(false);
-            }, 2000);
-        }
+            await tdRef.current.logout();
+        } catch {}
+        setUser(null);
+        setChats([]);
+        setActiveChat(null);
+        setPhone("");
+        setCode("");
+        setPassword("");
+        setView("main");
+        setLoading(false);
     };
 
-    // Рендер формы авторизации
-    const renderAuthForm = () => {
-        if (authState === "initializing") {
-            return (
-                <div className="loading-screen">
-                    <div className="spinner"></div>
-                    <p>Инициализация Telegram клиента...</p>
-                </div>
-            );
-        }
-
-        if (authState === "wait_phone") {
-            return (
-                <div className="auth-form">
-                    <h3>📱 Вход в Telegram</h3>
-                    <form onSubmit={handleSendPhone}>
-                        <input
-                            type="tel"
-                            value={phoneNumber}
-                            onChange={(e) => setPhoneNumber(e.target.value)}
-                            placeholder="+71234567890"
-                            disabled={loading}
-                            className="input-field"
-                            autoFocus
-                        />
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="btn"
-                        >
-                            {loading ? "Отправка..." : "Получить код"}
-                        </button>
-                    </form>
-                </div>
-            );
-        }
-
-        if (authState === "wait_code") {
-            return (
-                <div className="auth-form">
-                    <h3>🔐 Введите код</h3>
-                    <p className="hint">Код отправлен в Telegram</p>
-                    <form onSubmit={handleSendCode}>
-                        <input
-                            type="text"
-                            value={code}
-                            onChange={(e) => setCode(e.target.value)}
-                            placeholder="12345"
-                            disabled={loading}
-                            className="input-field"
-                            autoFocus
-                        />
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="btn"
-                        >
-                            {loading ? "Проверка..." : "Подтвердить"}
-                        </button>
-                    </form>
-                </div>
-            );
-        }
-
-        if (authState === "wait_password") {
-            return (
-                <div className="auth-form">
-                    <h3>🔑 Двухфакторная аутентификация</h3>
-                    <form onSubmit={handleSendPassword}>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Ваш пароль"
-                            disabled={loading}
-                            className="input-field"
-                            autoFocus
-                        />
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="btn"
-                        >
-                            {loading ? "Вход..." : "Войти"}
-                        </button>
-                    </form>
-                </div>
-            );
-        }
-
-        if (authState === "error") {
-            return (
-                <div className="error-screen">
-                    <h3>❌ Ошибка</h3>
-                    <p>{error}</p>
-                    <button
-                        onClick={() => window.location.reload()}
-                        className="btn"
-                    >
-                        Попробовать снова
-                    </button>
-                </div>
-            );
-        }
-
-        return null;
+    const handleLoadMore = async () => {
+        if (!tdRef.current) return;
+        setChatsLoading(true);
+        try {
+            await tdRef.current.loadChats(100);
+        } catch {}
+        setChatsLoading(false);
     };
 
-    // Рендер основного интерфейса
-    const renderMainScreen = () => {
-        if (authState !== "authorized" || !user) {
-            return renderAuthForm();
-        }
+    if (authState !== AUTH.READY) {
+        return (
+            <div
+                style={{
+                    height: "100vh",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                }}
+            >
+                {renderAuth(authState, {
+                    phone,
+                    code,
+                    password,
+                    loading,
+                    error,
+                    setPhone,
+                    setCode,
+                    setPassword,
+                    handleSendPhone,
+                    handleSendCode,
+                    handleSendPassword,
+                })}
+            </div>
+        );
+    }
 
-        return <MainContent data={data} activeItem={activeItem} />;
-    };
+    if (view === "profile") {
+        return (
+            <Profile
+                user={user}
+                td={tdRef.current}
+                onBack={() => setView("main")}
+                onLogout={handleLogout}
+            />
+        );
+    }
 
     return (
         <div className={styles.contentContainer}>
             <SideBar
-                data={data}
-                onSidebarClick={handleClickSidebarItem}
-                activeItem={activeItem?.id}
+                chats={chats}
+                onSidebarClick={setActiveChat}
+                activeItem={activeChat?.id}
+                onProfileClick={() => setView("profile")}
             />
-            <div className={styles.mainContent}>{renderMainScreen()}</div>
+            <div className={styles.mainContent}>
+                {activeChat ? (
+                    <Chat chat={activeChat} td={tdRef.current} />
+                ) : (
+                    <div className={styles.welcome}>
+                        <div className={styles.welcomeGreeting}>
+                            Привет, {user?.first_name}!
+                        </div>
+                        <p className={styles.welcomeHint}>
+                            Выберите чат в списке слева
+                        </p>
+                        <button
+                            className={styles.btn}
+                            onClick={handleLoadMore}
+                            disabled={chatsLoading}
+                        >
+                            {chatsLoading
+                                ? "Загрузка..."
+                                : `Загрузить ещё чатов (${chats.length})`}
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
+
+function renderAuth(
+    authState,
+    {
+        phone,
+        code,
+        password,
+        loading,
+        error,
+        setPhone,
+        setCode,
+        setPassword,
+        handleSendPhone,
+        handleSendCode,
+        handleSendPassword,
+    },
+) {
+    if (authState === AUTH.INIT) {
+        return (
+            <div className="loadingScreen">
+                <div className="spinner" />
+                <p>Инициализация...</p>
+            </div>
+        );
+    }
+
+    const errEl = error && (
+        <p style={{ color: "#e74c3c", fontSize: 13, margin: "0 0 4px" }}>
+            {error}
+        </p>
+    );
+
+    if (authState === AUTH.PHONE) {
+        return (
+            <div className="authForm">
+                <h3>Вход в Telegram</h3>
+                <form onSubmit={handleSendPhone}>
+                    <input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+79001234567"
+                        disabled={loading}
+                        className="inputField"
+                        autoFocus
+                    />
+                    {errEl}
+                    <button type="submit" disabled={loading} className="btn">
+                        {loading ? "Отправка..." : "Получить код"}
+                    </button>
+                </form>
+            </div>
+        );
+    }
+
+    if (authState === AUTH.CODE) {
+        return (
+            <div className="authForm">
+                <h3>Введите код</h3>
+                <p style={{ color: "#666", fontSize: 14, margin: 0 }}>
+                    Код отправлен в Telegram
+                </p>
+                <form onSubmit={handleSendCode}>
+                    <input
+                        type="text"
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        placeholder="12345"
+                        disabled={loading}
+                        className="inputField"
+                        autoFocus
+                    />
+                    {errEl}
+                    <button type="submit" disabled={loading} className="btn">
+                        {loading ? "Проверка..." : "Подтвердить"}
+                    </button>
+                </form>
+            </div>
+        );
+    }
+
+    if (authState === AUTH.PASSWORD) {
+        return (
+            <div className="authForm">
+                <h3>Двухфакторная аутентификация</h3>
+                <form onSubmit={handleSendPassword}>
+                    <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Пароль"
+                        disabled={loading}
+                        className="inputField"
+                        autoFocus
+                    />
+                    {errEl}
+                    <button type="submit" disabled={loading} className="btn">
+                        {loading ? "Вход..." : "Войти"}
+                    </button>
+                </form>
+            </div>
+        );
+    }
+
+    if (authState === AUTH.ERROR) {
+        return (
+            <div className="errorScreen">
+                <h3>Ошибка инициализации</h3>
+                <p>{error || "Неизвестная ошибка"}</p>
+                <button
+                    onClick={() => window.location.reload()}
+                    className="btn"
+                >
+                    Попробовать снова
+                </button>
+            </div>
+        );
+    }
+
+    return null;
+}
 
 export default App;

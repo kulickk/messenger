@@ -1,17 +1,12 @@
-// vite.renderer.config.mjs
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-    // Только здесь используем react плагин
     plugins: [react()],
 
-    build: {
-        rollupOptions: {
-            input: {
-                index: "./src/renderer/index.html",
-            },
-        },
+    optimizeDeps: {
+        // Let Vite handle tdlib-wasm as-is; pre-bundling breaks its WASM loading
+        exclude: ["tdlib-wasm"],
     },
 
     server: {
