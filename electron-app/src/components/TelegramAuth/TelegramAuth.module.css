@@ -58,6 +58,67 @@
 .btn:hover:not(:disabled) { background: #006FA8; }
 .btn:disabled { opacity: 0.5; cursor: default; }
 
+.btnSecondary {
+    padding: 11px;
+    border-radius: 12px;
+    border: 1.5px solid #E5E5EA;
+    background: #fff;
+    color: #3C3C43;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.btnSecondary:hover { background: #F2F2F7; }
+
+.qrWrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 0;
+}
+
+.qrImg {
+    width: 210px;
+    height: 210px;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0,136,204,0.18);
+    border: 4px solid #fff;
+    outline: 2px solid #E5E5EA;
+}
+
+.qrPlaceholder {
+    width: 210px;
+    height: 210px;
+    border-radius: 16px;
+    background: #F2F2F7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.qrSpinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid #E5E5EA;
+    border-top-color: #0088CC;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.steps {
+    margin: 0;
+    padding: 0 0 0 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: #3C3C43;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.steps li { padding-left: 2px; }
+
 .linkBtn {
     background: none;
     border: none;

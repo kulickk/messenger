@@ -56,7 +56,7 @@ services:
         condition: service_healthy
     environment:
       OLLAMA_HOST: http://ollama:11434
-    entrypoint: ["ollama", "pull", "tinyllama"]
+    entrypoint: ["ollama", "pull", "llama3.2"]
 
   # ── Application services ────────────────────────────────────────────────────
 
@@ -65,6 +65,8 @@ services:
       context: ../key-server
       dockerfile: Dockerfile
     restart: on-failure
+    ports:
+      - "8081:8081"
     environment:
       LISTEN_ADDR:  :8081
       POSTGRES_DSN: postgres://postgres:postgres@postgres:5432/messenger?sslmode=disable
@@ -85,10 +87,13 @@ services:
       context: ../mask-generator
       dockerfile: Dockerfile
     restart: on-failure
+    ports:
+      - "8082:8082"
     environment:
       LISTEN_ADDR:  :8082
       POSTGRES_DSN: postgres://postgres:postgres@postgres:5432/messenger?sslmode=disable
       OLLAMA_URL:   http://ollama:11434
+      OLLAMA_MODEL: llama3.2
     depends_on:
       postgres:
         condition: service_healthy

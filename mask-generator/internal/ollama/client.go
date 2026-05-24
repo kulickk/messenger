@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	defaultModel      = "tinyllama"
+	defaultModel      = "llama3.2"
 	defaultTemp       = 0.85
-	defaultNumPredict = 80
+	defaultNumPredict = 120
 )
 
 // Generator is the interface both the real Ollama client and the mock implement.
@@ -32,11 +32,14 @@ type Client struct {
 	httpClient *http.Client
 }
 
-func NewClient(baseURL string) *Client {
+func NewClient(baseURL, model string) *Client {
+	if model == "" {
+		model = defaultModel
+	}
 	return &Client{
 		baseURL:    strings.TrimRight(baseURL, "/"),
-		model:      defaultModel,
-		httpClient: &http.Client{Timeout: 60 * time.Second},
+		model:      model,
+		httpClient: &http.Client{Timeout: 120 * time.Second},
 	}
 }
 

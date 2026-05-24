@@ -1,203 +1,165 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import styles from './App.module.css'
 import SideBar from '../Sidebar/Sidebar.jsx'
 import MainContent from '../MainContent/MainContent.jsx'
-import SetupModal from '../SetupModal/SetupModal.jsx'
-import AddContactModal from '../AddContactModal/AddContactModal.jsx'
 import SettingsModal from '../SettingsModal/SettingsModal.jsx'
 import TelegramAuth from '../TelegramAuth/TelegramAuth.jsx'
-import { useGateway } from '../../hooks/useGateway.js'
-import { useInbox } from '../../hooks/useInbox.js'
 import { useTelegram } from '../../hooks/useTelegram.js'
-import {
-    loadUserId, saveUserId,
-    loadContacts, saveContacts,
-    loadMessages,
-    clearUnread,
-} from '../../lib/storage.js'
+import { zwEncode } from '../../lib/zwSteganography.js'
 
 const App = () => {
-    const [userId,        setUserId]        = useState(null)
-    const [contacts,      setContacts]      = useState([])
-    const [activeContact, setActive]        = useState(null)
-    const [showAdd,       setShowAdd]       = useState(false)
-    const [showSettings,  setShowSettings]  = useState(false)
-    const [defaults,      setDefaults]      = useState(null)
-    const [tab,           setTab]           = useState('encrypted')  // 'encrypted' | 'telegram'
-    const [activeTgChat,  setActiveTgChat]  = useState(null)
-
-    // ── bootstrap ─────────────────────────────────────────────────────────────
-    useEffect(() => {
-        window.messenger.getDefaults().then(d => setDefaults(d))
-        const uid = loadUserId()
-        setUserId(uid)
-        setContacts(loadContacts())
-    }, [])
-
-    // ── config ────────────────────────────────────────────────────────────────
-    const config = useMemo(() => {
-        if (!userId || !defaults) return null
-        return {
-            userId,
-            keyServerUrl:   defaults.keyServerUrl,
-            gatewayUrl:     defaults.gatewayUrl,
-            gatewayHttpUrl: defaults.gatewayHttpUrl,
-            cipherId:       defaults.cipherId,
-        }
-    }, [userId, defaults])
-
-    // ── encrypted messenger hooks ─────────────────────────────────────────────
-    const { sendMessage, connected, sent } = useGateway(config)
-    const { inbox, unread }                = useInbox(config, activeContact?.id)
+    const [showSettings,   setShowSettings]   = useState(false)
+    const [showProfile,    setShowProfile]    = useState(false)
+    const [activeTgChat,   setActiveTgChat]   = useState(null)
+    const [avatars,        setAvatars]        = useState({})
+    const [encryptedMode,  setEncryptedMode]  = useState(false)
+    const maskHistory = useRef({})   // chatId → string[] (last 8 masks)
+    const avatarLoading = useRef(new Set())
 
     // ── telegram hook ─────────────────────────────────────────────────────────
     const {
-        authState, authError,
+        authState, authError, myTgId, myProfile,
+        qrDataUrl,
         chats: tgChats, messages: tgMessages,
-        activeChatId: tgActiveChatId,
-        sendPhone, sendCode, sendPassword,
-        openChat: openTgChat, sendTgMessage, reinit,
+        userStatuses, readOutbox,
+        sendPhone, sendCode, sendPassword, startQrLogin,
+        openChat: openTgChat, sendTgMessage, logout,
     } = useTelegram()
 
-    // ── auto-add new senders to contacts ─────────────────────────────────────
+    // ── ESC navigation ───────────────────────────────────────────────────────
     useEffect(() => {
-        Object.keys(inbox).forEach(uid => {
-            if (!contacts.find(c => c.id === uid)) {
-                const updated = [...contacts, { id: uid, title: uid, previewMessage: '' }]
-                setContacts(updated)
-                saveContacts(updated)
-            }
-        })
-    }, [inbox])
-
-    // ── handlers (encrypted) ──────────────────────────────────────────────────
-    const handleSelectContact = (chat) => {
-        setActive(chat)
-        clearUnread(chat.id)
-    }
-
-    const handleSetupDone = (id) => {
-        saveUserId(id)
-        setUserId(id)
-    }
-
-    const handleAddContact = (contact) => {
-        if (contacts.find(c => c.id === contact.id)) return
-        const updated = [...contacts, contact]
-        setContacts(updated)
-        saveContacts(updated)
-    }
-
-    const handleSend = (text) => {
-        if (tab === 'telegram') {
-            if (activeTgChat) sendTgMessage(activeTgChat.id, text)
-        } else {
-            if (activeContact) sendMessage(activeContact.id, text)
+        const handler = (e) => {
+            if (e.key !== 'Escape') return
+            if (showSettings)     { setShowSettings(false); return }
+            if (showProfile)      { setShowProfile(false);  return }
+            if (activeTgChat)     { setActiveTgChat(null);  return }
         }
-    }
+        window.addEventListener('keydown', handler)
+        return () => window.removeEventListener('keydown', handler)
+    }, [showSettings, showProfile, activeTgChat])
 
-    // ── handlers (telegram) ───────────────────────────────────────────────────
+    // ── avatar lazy loader ────────────────────────────────────────────────────
+    const loadAvatar = useCallback((id) => {
+        if (!id || avatars[id] !== undefined || avatarLoading.current.has(id)) return
+        avatarLoading.current.add(id)
+        window.tg.getAvatar(id).then(url => {
+            setAvatars(prev => ({ ...prev, [id]: url }))
+        }).catch(() => {
+            setAvatars(prev => ({ ...prev, [id]: null }))
+        })
+    }, [avatars])
+
+    useEffect(() => {
+        tgChats.forEach(c => loadAvatar(c.id))
+    }, [tgChats])
+
+    useEffect(() => {
+        if (myTgId) loadAvatar(myTgId)
+    }, [myTgId])
+
+    // ── handlers ──────────────────────────────────────────────────────────────
     const handleTgChatClick = (chat) => {
         setActiveTgChat(chat)
         openTgChat(chat.id)
+        setEncryptedMode(false)
+        setShowProfile(false)
     }
 
-    // ── settings saved → re-init TDLib ───────────────────────────────────────
-    const handleSettingsSaved = () => { reinit() }
+    const handleSend = useCallback(async (text) => {
+        if (!activeTgChat) return
+        if (encryptedMode && myTgId) {
+            try {
+                const chatId  = activeTgChat.id
+                const history = maskHistory.current[chatId] || []
+                const [payload, mask] = await Promise.all([
+                    window.messenger.encrypt(chatId, text, myTgId),
+                    window.messenger.generateMask(text, history).catch(() => null),
+                ])
+                if (mask) {
+                    const prev = maskHistory.current[chatId] || []
+                    maskHistory.current[chatId] = [...prev, mask].slice(-8)
+                }
+                const hidden = zwEncode(`[enc]${payload}`)
+                const body   = mask ? `${mask}${hidden}` : hidden
+                sendTgMessage(chatId, body)
+            } catch (e) {
+                console.error('encrypt failed:', e)
+            }
+        } else {
+            sendTgMessage(activeTgChat.id, text)
+        }
+    }, [activeTgChat, encryptedMode, myTgId, sendTgMessage])
 
-    // ── encrypted message list ────────────────────────────────────────────────
-    const activeMessages = useMemo(() => {
-        if (!activeContact) return []
-        const persisted  = loadMessages(activeContact.id)
-        const sessionIn  = inbox[activeContact.id]  || []
-        const sessionOut = sent[activeContact.id]   || []
-        const seen       = new Set(persisted.map(m => m.id))
-        const extra      = [...sessionIn, ...sessionOut].filter(m => !seen.has(m.id))
-        return [...persisted, ...extra].sort((a, b) => a.id - b.id)
-    }, [activeContact, inbox, sent])
-
-    // ── telegram message list ─────────────────────────────────────────────────
-    const activeTgMessages = useMemo(() => {
+    // ── active chat data ──────────────────────────────────────────────────────
+    const messages = useMemo(() => {
         if (!activeTgChat) return []
         return (tgMessages[activeTgChat.id] || []).map(m => ({
-            id:   m.id,
-            text: m.content?.text?.text || '[медиа]',
-            self: m.is_outgoing,
-            mask: '',
+            id:         m.id,
+            text:       m.text || '',
+            self:       !!m.outgoing,
+            outgoing:   !!m.outgoing,
+            date:       m.date,
+            senderId:   m.senderId,
+            senderName: m.senderName,
         }))
     }, [activeTgChat, tgMessages])
 
-    // ── sidebar data with preview ─────────────────────────────────────────────
-    const contactsWithPreview = useMemo(() => contacts.map(c => {
-        const msgs = loadMessages(c.id)
-        const last = msgs[msgs.length - 1]
-        return {
-            ...c,
-            previewMessage: last
-                ? (last.self ? `Вы: ${last.text}` : last.text)
-                : c.previewMessage,
-        }
-    }), [contacts, inbox, sent])
-
-    // ── active chat for MainContent ───────────────────────────────────────────
-    const mainActiveItem  = tab === 'telegram' ? activeTgChat   : activeContact
-    const mainMessages    = tab === 'telegram' ? activeTgMessages : activeMessages
-    const mainConnected   = tab === 'telegram' ? (authState === 'ready') : connected
+    const status       = activeTgChat ? (userStatuses[activeTgChat.id] ?? null) : null
+    const readOutboxId = activeTgChat ? (readOutbox[activeTgChat.id]   ?? 0)    : 0
+    const connected    = authState === 'ready'
+    const needsAuth    = authState !== 'ready' && authState !== 'idle'
 
     // ── render ────────────────────────────────────────────────────────────────
-    if (userId === null && defaults !== null) {
-        return <SetupModal onDone={handleSetupDone} />
-    }
-
-    // Telegram auth flow occupies the content area when on telegram tab
-    const needsTgAuth = tab === 'telegram' && authState !== 'ready' && authState !== 'idle'
-
     return (
         <div className={styles.contentContainer}>
-            {showAdd && (
-                <AddContactModal
-                    keyServerUrl={config?.keyServerUrl || 'http://localhost:8081'}
-                    onAdd={handleAddContact}
-                    onClose={() => setShowAdd(false)}
-                />
-            )}
             {showSettings && (
                 <SettingsModal
                     onClose={() => setShowSettings(false)}
-                    onSaved={handleSettingsSaved}
+                    myProfile={myProfile}
+                    myAvatarUrl={avatars[myTgId] ?? null}
+                    onLogout={logout}
                 />
             )}
 
             <SideBar
-                data={contactsWithPreview}
-                onSidebarClick={handleSelectContact}
-                activeItem={activeContact?.id}
-                unread={unread}
-                onAddContact={() => setShowAdd(true)}
-                tab={tab}
-                onTabChange={setTab}
                 onOpenSettings={() => setShowSettings(true)}
                 tgData={tgChats}
                 onTgChatClick={handleTgChatClick}
                 activeTgChatId={activeTgChat?.id}
+                avatars={avatars}
+                myProfile={myProfile}
+                myAvatarUrl={avatars[myTgId] ?? null}
             />
 
             <div className={styles.mainContent}>
-                {needsTgAuth ? (
+                {needsAuth ? (
                     <TelegramAuth
                         authState={authState}
                         authError={authError}
                         onPhone={sendPhone}
                         onCode={sendCode}
                         onPassword={sendPassword}
+                        onQrLogin={startQrLogin}
+                        qrDataUrl={qrDataUrl}
                         onOpenSettings={() => setShowSettings(true)}
                     />
                 ) : (
                     <MainContent
-                        activeItem={mainActiveItem}
-                        messages={mainMessages}
-                        connected={mainConnected}
+                        activeItem={activeTgChat}
+                        messages={messages}
+                        connected={connected}
                         onSend={handleSend}
+                        avatars={avatars}
+                        onNeedAvatar={loadAvatar}
+                        isGroup={activeTgChat?.isGroup}
+                        status={status}
+                        readOutboxMaxId={readOutboxId}
+                        encryptedMode={encryptedMode}
+                        onToggleEncrypted={() => setEncryptedMode(v => !v)}
+                        myTgId={myTgId}
+                        peerTgId={activeTgChat?.id}
+                        showProfile={showProfile}
+                        onShowProfile={setShowProfile}
                     />
                 )}
             </div>

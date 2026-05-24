@@ -24,7 +24,10 @@
 .status {
     font-size: 13px;
     color: var(--status-fc);
+    transition: color 0.25s;
 }
+
+.statusOnline { color: #29B560; }
 
 .threeDotsSvg {
     cursor: pointer;

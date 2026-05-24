@@ -29,7 +29,12 @@ export function saveContacts(contacts) {
 }
 
 export function loadUserId() {
-    return get('userId') || null
+    let id = get('userId')
+    if (!id) {
+        id = crypto.randomUUID()
+        set('userId', id)
+    }
+    return id
 }
 
 export function saveUserId(id) {

@@ -40,6 +40,15 @@ function ecdhDerive(privRaw, peerPubRaw) {
   return crypto.diffieHellman({ privateKey: rawToPrivKey(privRaw), publicKey: rawToPubKey(peerPubRaw) })
 }
 
+function aesEncrypt(sharedSecret, plaintext) {
+  const key    = crypto.createHash('sha256').update(sharedSecret).digest()
+  const nonce  = crypto.randomBytes(12)
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, nonce)
+  const enc    = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
+  const tag    = cipher.getAuthTag()
+  return Buffer.concat([nonce, enc, tag])
+}
+
 function aesDecrypt(sharedSecret, data) {
   const key        = crypto.createHash('sha256').update(sharedSecret).digest()
   const nonce      = data.slice(0, 12)
@@ -48,6 +57,16 @@ function aesDecrypt(sharedSecret, data) {
   const decipher   = crypto.createDecipheriv('aes-256-gcm', key, nonce)
   decipher.setAuthTag(tag)
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8')
+}
+
+async function publishPubKey(userId, keyServerUrl) {
+  const { pubKeyB64 } = getOrCreateKeyPair(userId)
+  const res = await fetch(`${keyServerUrl}/publish`, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ user_id: userId, public_key: pubKeyB64 }),
+  })
+  if (!res.ok) throw new Error(`publish failed: ${res.status}`)
 }
 
 // Simple in-memory cache for peer public keys
@@ -63,4 +82,4 @@ async function fetchAndCachePubKey(userId, keyServerUrl) {
   return raw
 }
 
-module.exports = { getOrCreateKeyPair, ecdhDerive, aesDecrypt, fetchAndCachePubKey }
+module.exports = { getOrCreateKeyPair, ecdhDerive, aesEncrypt, aesDecrypt, fetchAndCachePubKey, publishPubKey }

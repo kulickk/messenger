@@ -1,6 +1,6 @@
-const SvgComponent = ({className="", children}) => {
+const SvgComponent = ({className="", onClick, children}) => {
     return(
-        <div className={ className }>
+        <div className={ className } onClick={ onClick }>
             {children}
         </div>
     );

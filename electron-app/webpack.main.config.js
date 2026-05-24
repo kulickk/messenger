@@ -1,11 +1,18 @@
 module.exports = {
-  /**
-   * This is the main entry point for your application, it's the first file
-   * that runs in the main process.
-   */
   entry: './src/main.js',
-  // Put your normal webpack config below here
   module: {
     rules: require('./webpack.rules'),
   },
+  // Keep Node.js-only packages out of the webpack bundle.
+  // Use a function so that telegram/* sub-paths (telegram/sessions,
+  // telegram/events, telegram/Password, …) all resolve at runtime from
+  // the same require() cache, avoiding instanceof mismatches.
+  externals: [
+    function ({ request }, callback) {
+      if (request === 'telegram' || request.startsWith('telegram/')) {
+        return callback(null, 'commonjs ' + request)
+      }
+      callback()
+    },
+  ],
 };

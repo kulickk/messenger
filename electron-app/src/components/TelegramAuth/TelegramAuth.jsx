@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import styles from './TelegramAuth.module.css'
 
-const TelegramAuth = ({ authState, authError, onPhone, onCode, onPassword, onOpenSettings }) => {
+const TelegramAuth = ({ authState, authError, onPhone, onCode, onPassword, onQrLogin, qrDataUrl, onOpenSettings }) => {
     const [phone,    setPhone]    = useState('')
     const [code,     setCode]     = useState('')
     const [password, setPassword] = useState('')
@@ -20,24 +20,6 @@ const TelegramAuth = ({ authState, authError, onPhone, onCode, onPassword, onOpe
                 <div className={styles.card}>
                     <div className={styles.spinner}>⏳</div>
                     <div className={styles.title}>Подключение к Telegram…</div>
-                </div>
-            </div>
-        )
-    }
-
-    if (authState === 'needs_credentials') {
-        return (
-            <div className={styles.wrap}>
-                <div className={styles.card}>
-                    <div className={styles.logo}>🔑</div>
-                    <div className={styles.title}>Требуются учётные данные</div>
-                    <div className={styles.hint}>
-                        Для входа через Telegram нужны <strong>api_id</strong> и <strong>api_hash</strong>.<br/>
-                        Получите их на <strong>my.telegram.org</strong> (или через VPN).
-                    </div>
-                    <button className={styles.btn} onClick={onOpenSettings}>
-                        ⚙️ Открыть настройки
-                    </button>
                 </div>
             </div>
         )
@@ -63,7 +45,34 @@ const TelegramAuth = ({ authState, authError, onPhone, onCode, onPassword, onOpe
                     <button className={styles.btn} onClick={submit} disabled={!phone.trim()}>
                         Далее
                     </button>
-                    <button className={styles.linkBtn} onClick={onOpenSettings}>Изменить api_id / api_hash</button>
+                    <button className={styles.btnSecondary} onClick={onQrLogin}>
+                        Войти по QR-коду
+                    </button>
+                </div>
+            </div>
+        )
+    }
+
+    if (authState === 'qr') {
+        return (
+            <div className={styles.wrap}>
+                <div className={styles.card}>
+                    <div className={styles.title}>Войти по QR-коду</div>
+                    <div className={styles.qrWrap}>
+                        {qrDataUrl
+                            ? <img src={qrDataUrl} className={styles.qrImg} alt="QR код" />
+                            : <div className={styles.qrPlaceholder}>
+                                <div className={styles.qrSpinner} />
+                              </div>
+                        }
+                    </div>
+                    <ol className={styles.steps}>
+                        <li>Откройте <b>Telegram</b> на телефоне</li>
+                        <li>Настройки → <b>Устройства</b></li>
+                        <li>Нажмите <b>Подключить устройство</b></li>
+                        <li>Наведите камеру на QR-код</li>
+                    </ol>
+                    <div className={styles.error}>{authError}</div>
                 </div>
             </div>
         )

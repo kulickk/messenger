@@ -25,12 +25,31 @@ func NewKeysHandler(svc *service.KeysService) *KeysHandler {
 //	POST   /publish       — store / update a public key
 //	GET    /{user_id}     — fetch a public key
 //	DELETE /revoke        — remove a public key
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func RegisterRoutes(mux *http.ServeMux, svc *service.KeysService) {
 	h := NewKeysHandler(svc)
-	mux.HandleFunc("POST /publish", h.publish)
-	mux.HandleFunc("GET /{user_id}", h.getKey)
-	mux.HandleFunc("DELETE /revoke", h.revoke)
-	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
+	mux.Handle("POST /publish",    corsMiddleware(http.HandlerFunc(h.publish)))
+	mux.Handle("GET /{user_id}",   corsMiddleware(http.HandlerFunc(h.getKey)))
+	mux.Handle("DELETE /revoke",   corsMiddleware(http.HandlerFunc(h.revoke)))
+	mux.HandleFunc("OPTIONS /",    func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.WriteHeader(http.StatusNoContent)
+	})
+	mux.HandleFunc("GET /health",  func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 }

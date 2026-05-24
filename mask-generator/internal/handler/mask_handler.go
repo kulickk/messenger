@@ -32,8 +32,10 @@ func RegisterRoutes(mux *http.ServeMux, cl *loader.CipherLoader, g ollama.Genera
 }
 
 type generateMaskRequest struct {
-	Text     string `json:"text"`
-	CipherID string `json:"cipher_id"`
+	Text     string                `json:"text"`
+	CipherID string                `json:"cipher_id"`
+	History  []builder.DialogueTurn `json:"history"`
+	Outgoing bool                  `json:"outgoing"`
 }
 
 type generateMaskResponse struct {
@@ -58,7 +60,7 @@ func (h *MaskHandler) generateMask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mask, err := h.run(r.Context(), req.Text, req.CipherID)
+	mask, err := h.run(r.Context(), req.Text, req.CipherID, req.History, req.Outgoing)
 	if err != nil {
 		log.Printf("generate mask: %v", err)
 		http.Error(w, "failed to generate mask", http.StatusInternalServerError)
@@ -69,7 +71,7 @@ func (h *MaskHandler) generateMask(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(generateMaskResponse{Mask: mask}) //nolint:errcheck
 }
 
-func (h *MaskHandler) run(ctx context.Context, text, cipherID string) (string, error) {
+func (h *MaskHandler) run(ctx context.Context, text, cipherID string, history []builder.DialogueTurn, outgoing bool) (string, error) {
 	// 1. Analyse
 	analysis := analyser.Analyse(text)
 
@@ -88,7 +90,7 @@ func (h *MaskHandler) run(ctx context.Context, text, cipherID string) (string, e
 		if err != nil {
 			return "", fmt.Errorf("load cipher: %w", err)
 		}
-		prompt = builder.Build(analysis, cipher, text)
+		prompt = builder.Build(analysis, cipher, text, history, outgoing)
 	} else {
 		// Pass cipher_id in System so MockClient can pick the right stub
 		prompt = builder.Prompt{System: cipherID, User: text}

@@ -12,9 +12,24 @@ const (
 	MaxRetries = 3
 )
 
+var noisePrefixes = []string{
+	"Output:", "output:", "OUTPUT:",
+	"Result:", "result:",
+	"Response:", "response:",
+	"Answer:", "answer:",
+	"Mask:", "mask:",
+}
+
 // Validate checks that the mask phrase meets the length constraints.
 // Returns a cleaned (trimmed) mask on success, or an error describing the violation.
 func Validate(mask string) (string, error) {
+	mask = strings.TrimSpace(mask)
+	for _, p := range noisePrefixes {
+		if strings.HasPrefix(mask, p) {
+			mask = strings.TrimSpace(mask[len(p):])
+			break
+		}
+	}
 	mask = strings.TrimSpace(mask)
 	n := utf8.RuneCountInString(mask)
 

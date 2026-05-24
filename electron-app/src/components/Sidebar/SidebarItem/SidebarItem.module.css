@@ -24,6 +24,25 @@
     border-radius: 50%;
     background-color: var(--sb-item-avatar-bgc);
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.avatarImg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+}
+
+.avatarInitial {
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+    user-select: none;
 }
 
 .sidebarItemTextContainer {

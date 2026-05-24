@@ -35,8 +35,8 @@ func main() {
 		generator = &ollama.MockClient{}
 		log.Println("mask-generator: MOCK_MASKS=true — Ollama disabled, using stub responses")
 	} else {
-		generator = ollama.NewClient(cfg.OllamaURL)
-		log.Printf("mask-generator: using Ollama at %s", cfg.OllamaURL)
+		generator = ollama.NewClient(cfg.OllamaURL, cfg.OllamaModel)
+		log.Printf("mask-generator: using Ollama at %s model=%s", cfg.OllamaURL, cfg.OllamaModel)
 	}
 
 	mux := http.NewServeMux()
@@ -69,18 +69,20 @@ func main() {
 }
 
 type config struct {
-	ListenAddr string
-	DSN        string
-	OllamaURL  string
-	MockMasks  bool
+	ListenAddr  string
+	DSN         string
+	OllamaURL   string
+	OllamaModel string
+	MockMasks   bool
 }
 
 func loadConfig() config {
 	return config{
-		ListenAddr: getenv("LISTEN_ADDR", ":8082"),
-		DSN:        getenv("POSTGRES_DSN", "postgres://postgres:postgres@localhost:5432/messenger"),
-		OllamaURL:  getenv("OLLAMA_URL", "http://localhost:11434"),
-		MockMasks:  os.Getenv("MOCK_MASKS") == "true",
+		ListenAddr:  getenv("LISTEN_ADDR", ":8082"),
+		DSN:         getenv("POSTGRES_DSN", "postgres://postgres:postgres@localhost:5432/messenger"),
+		OllamaURL:   getenv("OLLAMA_URL", "http://localhost:11434"),
+		OllamaModel: getenv("OLLAMA_MODEL", ""),
+		MockMasks:   os.Getenv("MOCK_MASKS") == "true",
 	}
 }
 
